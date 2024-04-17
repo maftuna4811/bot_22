@@ -1,0 +1,37 @@
+from aiogram.dispatcher import FSMContext
+
+from keyboards.default.user import user_main_menu
+from loader import dp, db
+from aiogram import types
+from states.user import RegisterState
+
+
+@dp.message_handler(commands='start')
+async def user_start(message: types.Message):
+    if db.get_user_by_chat_id(chat_id=message.chat.id):
+        text = "HI, WELCOME TO"
+        await message.answer(text=text, reply_markup=user_main_menu)
+    else:
+        text = "Hi, Welcome to, Enter your name: "
+        await message.answer(text=text)
+        await RegisterState.full_name.set()
+
+
+@dp.message_handler(state=RegisterState.full_name)
+async def get_full_name(message: types.Message, state: FSMContext):
+    await state.update_data(full_name=message.text, chat_id=message.chat.id)
+
+
+@dp.message_handler(state='user-upload-photo', content_types=types.ContentTypes.PHOTO)
+async def get_uploaded_photo(message: types.Message, state: FSMContext):
+    await state.update_data(photo_id=message.photo[-1].file_id, chat_id=message.chat.id)
+    data = await state.get_data()
+
+    if db.add_photo(data):
+        text = "Rasm qo'shildi: "
+    else:
+        text = "Rasm qushilmadi"
+    await message.answer(text=text)
+    await state.finish()
+
+
